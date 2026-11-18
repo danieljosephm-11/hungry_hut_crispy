@@ -1,7 +1,11 @@
 node_modules/
 dist/
-server/data/
-_assets/
 .env
+.env.local
+server/uploads/
 *.log
 .DS_Store
+client/public/images/_sheet*.jpg
+client/public/images/drink-test-*
+coverage/
+.mongo-data/

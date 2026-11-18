@@ -1,37 +1,18 @@
 {
-  "name": "smartdine",
+  "name": "hungry-hut",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
-  "description": "SmartDine - dynamic restaurant ordering and payment system with double QR codes",
+  "description": "Hungry Hut — premium fast-food restaurant ordering platform",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c yellow,cyan \"node --env-file-if-exists=.env --watch server/index.js\" \"vite --config client/vite.config.js\"",
-    "dev:api": "node --env-file-if-exists=.env --watch server/index.js",
-    "dev:web": "vite --config client/vite.config.js",
-    "build": "vite build --config client/vite.config.js",
-    "start": "node --env-file-if-exists=.env server/index.js",
-    "seed": "node --env-file-if-exists=.env server/seed.js",
-    "reset": "node --env-file-if-exists=.env server/seed.js --reset"
-  },
-  "engines": {
-    "node": ">=22.13"
-  },
-  "dependencies": {
-    "bcryptjs": "2.4.3",
-    "express": "4.21.2",
-    "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.468.0",
-    "qrcode": "^1.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c yellow,cyan \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "seed": "npm --prefix server run seed",
+    "build": "npm --prefix client run build",
+    "start": "npm --prefix server start"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.2",
-    "sharp": "^0.35.5",
-    "vite": "^6.0.7"
+    "concurrently": "^9.1.0"
   }
 }

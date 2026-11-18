@@ -1,272 +1,260 @@
-# SmartDine
+# Hungry Hut
 
-**Double-QR restaurant ordering and payments — one code to order, one to settle the bill.**
+Premium fast-food ordering platform for **Hungry Hut** — customer website + secure admin dashboard.
 
-SmartDine is a full-stack restaurant operating system built around two dynamic QR codes per table. Guests scan the first code to browse a live menu and send orders straight to the kitchen. The second code opens an order-aware bill, creates a short-lived payment session, and settles the exact amount on the server — never a static "pay ₹X" QR.
+**Brand:** Hungry Hut  
+**Taglines:** “Crispy Bites, Happier Nights” · “Freshly Fried. Always Delicious.” · “The Ultimate Fast-Food Experience” · “Good Food, Good Mood”
 
-The project ships with a polished guest experience, an admin back office, a real-time kitchen display, seeded demo data, and a safe simulated payment mode, so it runs end to end on a laptop with no external services.
+## Stack
 
----
+- **Client:** React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, React Router, Lucide React
+- **Server:** Node.js, Express (REST), Mongoose/MongoDB, JWT (httpOnly cookie) admin auth, Zod validation, Multer uploads
+- **Payments (India):** UPI QR/manual UTR submission with admin verification, optional Razorpay (server-side order create + HMAC signature verification + gateway confirmation/capture), COD/counter where enabled
+- **Storage:** Local uploads (`server/uploads`, served from `/uploads`) by default; optional Cloudinary-ready env placeholders (image storage configurable via env/integration)
 
-## Why two QR codes?
-
-| QR | Route | Purpose |
-| --- | --- | --- |
-| **01 · Menu** | `/t/:tableToken` | Per-table digital menu, cart, order placement, live order tracking |
-| **02 · Payment** | `/pay/:tableToken` | Per-table bill. Lists open orders and creates a payment session for one order |
-
-The payment QR is **not** a static payment link. Every checkout creates a server-side payment session that:
-
-- is tied to a single order and its server-calculated total,
-- expires after **15 minutes**,
-- is capped so one order can only ever be collected once,
-- emits live updates to the guest page, admin dashboard, and kitchen display.
-
----
-
-## Features
-
-### Guest experience
-
-- Per-table menu with categories, search, veg/non-veg marks, and dish photography
-- Sticky cart drawer with quantity controls, notes, and live GST/total calculation
-- Order placement with a human-readable order code (`ORD-1149`)
-- Live order timeline (new → accepted → preparing → ready → served) over Socket.IO with polling fallback
-- Table bill page showing every order from the last 12 hours
-- Order-linked payment page: dynamic UPI QR, UPI deep link, countdown, and demo confirmation
-- Printable / save-as-PDF tax invoice with paid stamp and payment reference
-- Fully responsive layout, mobile cart bar, and accessible focus states
-
-### Admin back office
-
-- Email/password sign-in with JWT sessions and role-based access (`admin`, `kitchen`, `staff`)
-- Service overview: revenue, orders, active tables, live activity
-- Menu manager: categories, dishes, prices, availability, veg flags, image uploads
-- Tables & QR: create tables, rotate tokens, preview and print double-QR table cards
-- Order stream: filter by status/payment, open full tickets, advance or cancel orders
-- Payments ledger: status, method, transaction IDs, retry/expiry handling
-- Reports: revenue by day, top dishes, payment mix, category performance, status split, CSV export
-- Settings: restaurant identity, tax and service charge, UPI VPA, currency
-- Dedicated kitchen display with four live columns, sound alert, and fullscreen mode
-
-### Platform
-
-- Zero-setup SQLite database (Node's built-in `node:sqlite`, or `bun:sqlite` on Bun)
-- Auto-seeds a realistic demo restaurant on first boot
-- Server-side price calculation, Zod-free validation helpers, rate limiting, audit log
-- Razorpay checkout + signed webhook support (optional)
-- No Tailwind or UI framework — handcrafted CSS design system
-- Self-hosted fonts and food photography, so the demo works offline
-
----
-
-## Tech stack
-
-| Layer | Choice |
-| --- | --- |
-| Frontend | React 18, Vite 6, React Router 6, lucide-react |
-| Styling | Hand-written CSS (`styles.css`, `admin.css`, `responsive.css`, `print.css`) |
-| Backend | Node.js 22.13+, Express 4 |
-| Database | SQLite via `node:sqlite` (Bun: `bun:sqlite`) |
-| Realtime | Socket.IO (rooms for restaurant, order, and payment session) |
-| Auth | JWT + bcrypt |
-| Payments | Demo UPI simulation or Razorpay Orders + signed webhooks |
-| QR | `qrcode` (server-rendered PNGs) |
-
----
-
-## Quick start
-
-**Requirements:** Node.js **22.13 or newer** (Node 24 recommended). No database server, Docker, or API keys needed.
-
-```bash
-git clone https://github.com/danieljosephm-11/Restaurant-Template-1.git
-cd Restaurant-Template-1
-
-npm install
-npm run dev
-```
-
-Open **http://localhost:5173**.
-
-The first API boot creates `server/data/smartdine.db` and seeds the demo restaurant automatically.
-
-### Production-style run
-
-```bash
-npm run build
-npm start
-```
-
-Express serves the built SPA and API from **http://localhost:4000**.
-
-### Configuration
-
-Copy `.env.example` to `.env` when you need to override defaults.
-
-```ini
-PORT=4000
-APP_URL=http://localhost:5173
-JWT_SECRET=change-me-to-a-long-random-string
-PAYMENT_MODE=demo
-```
-
-> On a hosted platform, set `APP_URL` to the public origin (for example `https://your-service.onrender.com`). QR codes embed this value, so a wrong URL produces QR codes that point at localhost. On Render, `RENDER_EXTERNAL_URL` is used automatically when `APP_URL` is unset.
-
-### Demo access
-
-| Role | Email | Password |
-| --- | --- | --- |
-| Admin | `admin@smartdine.app` | `Admin@123` |
-| Kitchen | `kitchen@smartdine.app` | `Kitchen@123` |
-
-Demo table 1 menu: `/t/fpmnYlOGtMfDPKlM`  
-Demo table 1 bill: `/pay/fpmnYlOGtMfDPKlM`
-
-The landing page's **Start the demo** button resolves the current demo table from `/api/public/demo`, so seeded tokens are never hard-coded into the UI.
-
----
-
-## Payment modes
-
-### Demo mode (default)
-
-`PAYMENT_MODE=demo` shows a real UPI intent QR and a clearly labelled **Simulate successful payment** action. The QR uses the restaurant's configured VPA (the seed value `spiceroute@upi` is fictional). No money moves, and the UI states this explicitly.
-
-Demo confirmation is refused when the server is in Razorpay mode.
-
-### Razorpay mode
-
-```ini
-PAYMENT_MODE=razorpay
-RAZORPAY_KEY_ID=rzp_live_...
-RAZORPAY_KEY_SECRET=...
-RAZORPAY_WEBHOOK_SECRET=...
-APP_URL=https://your-domain.example
-```
-
-- Checkout is created server-side with the server-calculated amount.
-- The webhook endpoint is `POST /api/webhooks/razorpay`.
-- Signatures are verified against the **raw** request body before parsing.
-- Amounts are compared against the stored payment before an order is marked paid.
-- Webhook events are idempotent: replaying a capture does not double-credit an order.
-
-Use Razorpay test keys and a tunnel (for example Cloudflare Tunnel or ngrok) while developing webhooks locally.
-
----
-
-## Security notes
-
-- Prices, tax, and totals are always calculated on the server; client totals are display-only.
-- Payment sessions are random 24-byte tokens; only a SHA-256 hash is stored in the database.
-- Session tokens expire after 15 minutes and are scoped to one order.
-- Completing a payment retires every other pending session for that order.
-- Admin and kitchen routes require a valid JWT and the correct role.
-- Passwords are hashed with bcrypt; login responses do not reveal whether an email exists.
-- Rate limits protect public order, payment, QR, and login endpoints.
-- Responses set `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and a restrictive permissions policy.
-- `.env`, SQLite data, uploaded files, and logs are gitignored.
-
-For production, also: use HTTPS, rotate `JWT_SECRET`, set a restricted CORS/`APP_URL`, move uploads to object storage, back up the database, and complete a PCI/UPI compliance review with your payment provider.
-
----
-
-## Deployment
-
-### Render (recommended for this demo)
-
-The repository includes `render.yaml`. On Render, create a **Blueprint** from the repo, or create a Web Service manually with:
-
-- **Build command:** `npm ci && npm run build`
-- **Start command:** `npm start`
-- **Health check:** `/api/health`
-- **Node version:** `24` (or any 22.13+)
-
-Set `JWT_SECRET` to a long random value. Leave `PAYMENT_MODE=demo` for a public demo.
-
-> **SQLite persistence:** Render's free plan has an ephemeral filesystem. The database is recreated and reseeded whenever the service restarts or redeploys. For durable orders, attach a persistent disk (paid plans) mounted at `/opt/render/project/src/server/data`, or run on Railway/Fly.io with a volume mounted at the same path.
-
-### Railway / Fly.io
-
-Both platforms support Node and persistent volumes:
-
-- Build: `npm ci && npm run build`
-- Start: `npm start`
-- Mount a volume at `server/data` (relative to the app root) for SQLite and uploads
-- Set `APP_URL` to the public URL
-
-### Static frontend only
-
-`npm run build` produces `dist/`. The app expects an API and WebSocket server, so deploy the Node server alongside it rather than hosting `dist/` alone.
-
----
-
-## Project structure
+## Repository layout
 
 ```text
 .
-├── client/
-│   ├── public/                 # fonts, favicon, seeded food photography
-│   ├── src/
-│   │   ├── components/         # shared UI, logo, layouts, badges
-│   │   ├── context/            # auth and toast providers
-│   │   ├── hooks/              # query/title/interval hooks
-│   │   ├── lib/                # API client, format helpers, socket client
-│   │   ├── pages/              # guest pages, kitchen display, admin pages
-│   │   ├── admin.css           # admin shell and back-office styles
-│   │   ├── print.css           # invoice and report print rules
-│   │   ├── responsive.css      # breakpoint rules
-│   │   └── styles.css          # design tokens, guest pages, kitchen board
-│   └── vite.config.js
-├── server/
-│   ├── lib/                    # auth, orders, payments, realtime, helpers
-│   ├── routes/                 # public, auth, kitchen, admin, webhooks
-│   ├── data/                   # SQLite database + uploads (gitignored)
-│   ├── db.js                   # schema and SQLite adapter
-│   ├── index.js                # Express + Socket.IO entry
-│   └── seed.js                 # demo restaurant seed/reset
-├── .env.example
-├── render.yaml
-└── package.json
+├─ client/                 # React + Vite app (customer + /admin)
+│  ├─ dist/                # Production build output
+│  ├─ public/
+│  └─ src/
+├─ server/                 # Express API + MongoDB models/routes
+│  ├─ src/
+│  └─ uploads/             # Local upload storage (dev/runtime)
+├─ .env.example            # Environment template (copy to server/.env)
+└─ package.json            # Root scripts (install/dev/build/start)
 ```
 
----
+## Prerequisites
 
-## Scripts
+- Node.js 18+ and npm
+- MongoDB for persistent/production data (local MongoDB or MongoDB Atlas)
+  - **Development fallback:** if `MONGODB_URI` is unreachable and `DEV_EMBEDDED_DB=true`, the API can start with an in-process `mongodb-memory-server` using persistent local data in `server/.mongo-data` (best-effort). Embedded dev data/state can be reset/reseeded depending on startup conditions; restarting the API in this mode may reseed and lose in-memory/dev state.
 
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | API with watch mode + Vite dev server |
-| `npm run dev:api` | API only (port 4000) |
-| `npm run dev:web` | Vite only (port 5173) |
-| `npm run build` | Production build into `dist/` |
-| `npm start` | Serve API + built SPA from one Node process |
-| `npm run seed` | Seed an empty database |
-| `npm run reset` | Delete the demo database and reseed |
+## Setup
 
-Reset demo data at any time with `npm run reset` (stops and recreates the database).
+### 1. Install dependencies
 
----
+```bash
+# from repo root
+npm install
+npm run install:all
+```
+
+Or install separately:
+
+```bash
+npm --prefix server install
+npm --prefix client install
+```
+
+### 2. Configure environment
+
+Copy the template to `server/.env` and adjust values:
+
+```bash
+# Windows PowerShell
+Copy-Item .env.example server/.env
+
+# macOS/Linux
+cp .env.example server/.env
+```
+
+> The server loads environment variables via `dotenv` from its working directory (`server/.env` when run with the provided scripts).
+
+### 3. Run in development
+
+Start API + client together (recommended):
+
+```bash
+npm run dev
+```
+
+Or run separately:
+
+```bash
+npm run dev:server   # API on http://localhost:4000
+npm run dev:client   # Vite dev server on http://localhost:5173
+```
+
+Dev client proxy (`client/vite.config.ts`): `/api` and `/uploads` -> `http://localhost:4000`.
+
+### 4. Seed database
+
+The API seeds/bootstrap data automatically on startup when needed. To run seed explicitly:
+
+```bash
+npm run seed
+```
+
+## Environment variables
+
+Defined in `.env.example` (copy to `server/.env`).
+
+| Variable | Required | Default / example | Notes |
+| --- | --- | --- | --- |
+| `NODE_ENV` | No | `development` | `production` enforces secure cookie behavior and requires valid secrets/config. |
+| `PORT` | No | `4000` | API server port. |
+| `CLIENT_ORIGIN` | No | `http://localhost:5173` | Allowed client origin(s) context / public site origin fallback in some flows. |
+| `PUBLIC_BASE_URL` | No | `http://localhost:4000` | Public base URL for API/server-generated links where applicable. |
+| `PUBLIC_SITE_URL` | No | *(unset)* | Optional public site URL override used for generated menu QR links when set. |
+| `MONGODB_URI` | **Yes in production** | `mongodb://127.0.0.1:27017/hungry-hut` | MongoDB connection string. Required for production; dev may fall back to embedded DB if enabled and unreachable. |
+| `DEV_EMBEDDED_DB` | No | `true` | Dev-only in-process Mongo fallback when `MONGODB_URI` is unreachable. Set `false` to disable. |
+| `JWT_SECRET` | **Yes** (prod enforces min length) | replace with long random string | Admin JWT signing secret; must be strong/long (>= 24 chars expected). |
+| `JWT_EXPIRES_IN` | No | `8h` | Admin session JWT expiry. |
+| `ADMIN_EMAIL` | No | `admin@hungryhut.in` | Seed/bootstrap admin email (used on initial setup/seed). |
+| `ADMIN_PASSWORD` | No | `HungryHut@2026` | Seed/bootstrap admin password. **Change in production.** |
+| `ADMIN_NAME` | No | `Hungry Hut Admin` | Seed/bootstrap admin display name. |
+| `CLOUDINARY_CLOUD_NAME` | No | *(empty)* | Optional image storage integration. |
+| `CLOUDINARY_API_KEY` | No | *(empty)* | Optional image storage integration. |
+| `CLOUDINARY_API_SECRET` | No | *(empty)* | Optional image storage integration. |
+| `RAZORPAY_KEY_ID` | No | *(empty)* | Optional Razorpay checkout (required together with secret for Razorpay flow). |
+| `RAZORPAY_KEY_SECRET` | No | *(empty)* | Optional Razorpay checkout/verification. |
+| `RAZORPAY_WEBHOOK_SECRET` | No | *(empty)* | Optional Razorpay webhook signature verification. |
+| `MAPS_EMBED_QUERY` | No | `Hauz+Khas+New+Delhi+India` | Map/embed query fallback. |
+| `SERVE_CLIENT` | No | `true` | When `true` (or in production mode per server config), API serves built client from `client/dist`. |
+
+## Admin setup
+
+- **Admin URL:** `/admin/login` (e.g. `http://localhost:5173/admin/login` in dev, or same-origin in production-served build)
+- **Default seeded credentials (development/demo):**
+  - Email: `admin@hungryhut.in`
+  - Password: `HungryHut@2026`
+- Admin authentication uses a **JWT stored in an httpOnly cookie**.
+- Change admin credentials/secrets before production use. Seed values come from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
+
+## Development and production deployment
+
+### Build client
+
+```bash
+npm run build
+```
+
+Generates `client/dist` (`tsc --noEmit && vite build`).
+
+### Run API (serving built client)
+
+```bash
+# ensure client is built and server env is configured
+npm start
+# equivalent: npm --prefix server start
+```
+
+For production-style single-server deployment:
+
+1. Set environment in `server/.env` (at minimum `NODE_ENV=production`, strong `JWT_SECRET`, and `MONGODB_URI`).
+2. Set `SERVE_CLIENT=true`.
+3. Build client: `npm run build` (creates `client/dist`).
+4. Start server: `npm start`.
+5. The API serves the built React app from `client/dist` (with SPA fallback) and static uploads from `/uploads`.
+
+### Important production notes
+
+- **MongoDB:** `MONGODB_URI` is required in production. Do not rely on embedded dev DB in production.
+- **CORS/origin/cookies:** configure `CLIENT_ORIGIN`/public URLs appropriately for your deployment domain and HTTPS.
+- **Uploads:** local `server/uploads` is ephemeral on many hosts; use persistent storage or external image storage for production as needed.
+- **Razorpay:** set `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to enable Razorpay checkout; payments are verified server-side (signature + gateway confirmation/capture). Webhook support requires `RAZORPAY_WEBHOOK_SECRET`.
 
 ## API overview
 
-| Area | Examples |
+Base URL (dev): `http://localhost:4000`
+
+- `GET /api/health` — service/database health
+- Auth/session for admin via httpOnly cookie (`/api/auth/*`)
+- Public/customer APIs under `/api/*` (menu, settings, offers, quote, orders, payments, secret unlock, contact, etc.)
+- Admin APIs under `/api/admin/*` (protected)
+
+### Auth (`/api/auth`)
+
+| Method | Path | Auth | Description |
+| --- | --- | --- | --- |
+| POST | `/login` | Public | Admin login (`{ email, password }`), sets session cookie |
+| POST | `/logout` | Public | Clears session cookie |
+| GET | `/me` | Admin | Current admin user |
+| POST | `/password` | Admin | Change password (`{ currentPassword, newPassword }`) |
+
+### Public / customer APIs
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/api/settings` | Public restaurant settings/content |
+| GET | `/api/categories` | Active categories |
+| GET | `/api/products` | Available products (filters: `category`, `q`, `diet`, `sort`, `limit`) |
+| GET | `/api/products/:slug` | Product detail |
+| GET | `/api/offers` | Active offers/coupons-facing offers (`limit` optional) |
+| GET | `/api/bucket/ingredients` | Active Build Your Bucket ingredients |
+| POST | `/api/secret/unlock` | Unlock secret menu with passphrase (`{ code }`) |
+| GET | `/api/testimonials` | Approved testimonials |
+| GET | `/api/gallery` | Active gallery items |
+| GET | `/api/crispy-meter` | Crispy meter/live kitchen-style data |
+| GET | `/api/home` | Aggregated home payload (settings/categories/featured/offers/testimonials/gallery/crispy/faqs) |
+| POST | `/api/quote` | Server-side pricing/discount quote for cart (`items`, `couponCode`, `fulfilmentType`) |
+| POST | `/api/contact` | Submit contact message |
+| POST | `/api/orders` | Create order (customer/cart/fulfilment/payment; server validates and prices) |
+| GET | `/api/orders/:orderNumber?phone=...` | Fetch order (phone-verified) |
+| POST | `/api/orders/:orderNumber/payment` | Submit UPI payment details for verification (`phone`, `utr`, optional `screenshotUrl`) |
+| POST | `/api/orders/:orderNumber/payment-proof` | Upload UPI payment screenshot (`multipart/form-data`, field `screenshot`, `phone`) |
+| POST | `/api/payments/razorpay/create` | Create Razorpay order for an existing app order (`orderNumber`, `phone`) |
+| POST | `/api/payments/razorpay/verify` | Verify Razorpay payment (signature + gateway confirmation; may capture authorized payment) |
+| POST | `/api/payments/razorpay/webhook` | Razorpay webhook (signature-verified when secret configured) |
+
+### Admin APIs (`/api/admin`, auth required)
+
+| Area | Endpoints (summary) |
 | --- | --- |
-| Public | `GET /api/public/demo`, `GET /api/public/tables/:token/menu`, `POST /api/public/tables/:token/orders`, `GET /api/public/orders/:token`, `GET /api/public/bill/:token` |
-| Payments | `POST /api/public/orders/:token/payment-session`, `GET /api/public/payments/:sessionToken`, `GET /api/public/payments/:sessionToken/qr.png`, `POST /api/public/payments/:sessionToken/confirm` (demo only) |
-| Auth | `POST /api/auth/login`, `GET /api/auth/me` |
-| Admin | `/api/admin/dashboard`, `/api/admin/menu`, `/api/admin/tables`, `/api/admin/orders`, `/api/admin/payments`, `/api/admin/reports`, `/api/admin/settings` |
-| Kitchen | `GET /api/kitchen/tickets`, `PATCH /api/kitchen/orders/:id/status` |
-| Webhook | `POST /api/webhooks/razorpay` |
+| Dashboard/stats | `GET /stats`, `GET /activity` |
+| Orders | `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status`, `PATCH /orders/:id/payment`, `PATCH /orders/:id/notes` |
+| Payments/customers | `GET /payments`, `GET /customers` |
+| Products | `GET/POST /products`, `PUT/DELETE /products/:id` |
+| Categories | `GET/POST /categories`, `PUT/DELETE /categories/:id` |
+| Bucket ingredients | `GET/POST /bucket/ingredients`, `PUT/DELETE /bucket/ingredients/:id` |
+| Secret menu items | `GET/POST /secret`, `PUT/DELETE /secret/:id` |
+| Offers & coupons | `GET/POST /offers`, `PUT/DELETE /offers/:id`, `GET /coupons`, `PATCH /coupons/:id` |
+| Testimonials | `GET/POST /testimonials`, `PUT/DELETE /testimonials/:id` |
+| Gallery | `GET/POST /gallery`, `PUT/DELETE /gallery/:id` |
+| Messages | `GET /messages`, `PATCH /messages/:id`, `DELETE /messages/:id` |
+| Settings | `GET/PUT /settings` (admin role required for update) |
+| QR | `GET /qr`, `PUT /qr/:type` (`menu`/`payment`, admin role required) |
+| Uploads | `POST /upload` (`multipart/form-data`, field `image`) |
 
----
+> For exact request/response shapes and validation rules, see `server/src/routes/*.js` and `server/src/routes/admin/*.js`.
 
-## Credits
+## Key behavior notes
 
-- Food photography is sourced from **Wikimedia Commons** under free licences and used here as demo imagery. If you publish this project, replace the images with your own or add per-image author/licence attribution from their Commons file pages.
-- Typography: **Fraunces** and **Inter** (SIL Open Font License), self-hosted in `client/public/fonts`.
-- Icons: **lucide-react** (ISC licence).
+- **Pricing integrity:** order totals/discounts are computed server-side (quote/order flows), not trusted from the client.
+- **UPI flow:** customer can submit UTR/screenshot; order/payment remains pending until admin verification.
+- **Razorpay:** optional; when configured, checkout/verification is server-confirmed and signature-verified.
+- **Guest order tracking:** order history can be stored client-side and tracking is phone-verified.
+- **Secret menu:** passphrase is validated server-side; client may cache unlocked state/items per device for UX.
+- **Dev DB volatility:** embedded dev MongoDB state may be reseeded/lost on API restart depending on mode/state.
 
-## Disclaimer
+## Useful scripts
 
-SmartDine is a demonstration product. The seeded restaurant, UPI VPA, GSTIN, staff accounts, and payments are fictional. Demo mode does not move real money. Review security, tax, and payment-compliance requirements before using it in a real restaurant.
+| Command | Description |
+| --- | --- |
+| `npm run install:all` | Install server and client dependencies |
+| `npm run dev` | Run server + client concurrently (dev) |
+| `npm run dev:server` | Run API in watch mode |
+| `npm run dev:client` | Run Vite dev server |
+| `npm run seed` | Run seed script |
+| `npm run build` | Build client to `client/dist` |
+| `npm start` | Start API server (`SERVE_CLIENT=true` serves built client when configured) |
+
+## Verification
+
+Recommended checks before handoff/deploy:
+
+```bash
+npm.cmd --prefix client run build
+```
+
+Manual smoke checks (dev/prod build): customer browse/cart/checkout/quote, order placement, order tracking, admin login, admin CRUD/toggles reflecting on customer site, UPI submission/admin verification flow, and QR/menu/payment pages.
+
+## Known limitations / notes
+
+- **Pixel-perfect fidelity:** without an authoritative Hungry Hut reference image, UI is implemented to match the written brand/design spec (not guaranteed pixel-identical).
+- **Dev runtime:** Vite dev mode may occasionally have lazy-route loading issues in some local states; a clean restart/cache clear or testing against `client/dist` (preview/`SERVE_CLIENT=true`) can be used for stable verification. Production build (`client/dist`) is the source of truth for deploy.
+- **Embedded dev DB:** restarting the API while using embedded dev DB can reseed and discard prior dev orders/state.
