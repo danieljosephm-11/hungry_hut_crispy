@@ -1,0 +1,33 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: Render Dashboard → New → Blueprint → connect
+# https://github.com/danieljosephm-11/hungry_hut_crispy.git
+services:
+  - type: web
+    name: hungry-hut-crispy-danieljosephm
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci --prefix server && npm ci --prefix client --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.13.0
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_CLIENT
+        value: true
+      - key: AUTO_SEED
+        value: true
+      - key: MONGODB_URI
+        sync: false
+        description: MongoDB Atlas connection string (mongodb+srv://...)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: ADMIN_EMAIL
+        value: admin@hungryhut.in
+      - key: ADMIN_PASSWORD
+        sync: false
+        description: Admin password used when the database is first seeded

@@ -44,7 +44,10 @@ const sameOriginDev =
   process.env.NODE_ENV === 'production'
     ? []
     : [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
-const origins = [...new Set([...configuredOrigins, ...sameOriginDev])];
+const renderOrigin = process.env.RENDER_EXTERNAL_URL;
+const origins = [
+  ...new Set([...configuredOrigins, ...sameOriginDev, ...(renderOrigin ? [renderOrigin] : [])]),
+];
 
 app.use(
   helmet({
