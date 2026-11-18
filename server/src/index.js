@@ -134,11 +134,18 @@ async function start() {
   });
 }
 
-start().catch(async (error) => {
-  console.error('[startup failed]', error);
-  await disconnectDB();
-  process.exit(1);
-});
+const isDirectRun =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+export default app;
+
+if (isDirectRun) {
+  start().catch(async (error) => {
+    console.error('[startup failed]', error);
+    await disconnectDB();
+    process.exit(1);
+  });
+}
 
 async function shutdown(signal) {
   console.log(`\n[api] ${signal} received — closing down`);
