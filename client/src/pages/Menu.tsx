@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, errorMessage } from '../lib/api';
 import type { Category, Product } from '../types';
 import { Button, EmptyState, Input, SectionHeading, Select, Skeleton } from '../components/ui';
 import { Reveal } from '../components/Reveal';
@@ -13,6 +13,8 @@ export default function Menu() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
   const [quick, setQuick] = useState<Product | null>(null);
   const [q, setQ] = useState(searchParams.get('q') || '');
 
@@ -29,13 +31,17 @@ export default function Menu() {
 
   useEffect(() => {
     setLoading(true);
+    setError('');
     const params = new URLSearchParams(searchParams);
     api
       .get<Product[]>(`/products${params.toString() ? `?${params.toString()}` : ''}`)
       .then(setProducts)
-      .catch(() => setProducts([]))
+      .catch((err: unknown) => {
+        setProducts([]);
+        setError(errorMessage(err));
+      })
       .finally(() => setLoading(false));
-  }, [searchParams]);
+  }, [searchParams, retryKey]);
 
   const categoryLabel = (category: Category) => {
     if (category.slug === 'chicken') return 'Fried Chicken';
@@ -144,7 +150,13 @@ export default function Menu() {
             </div>
           </div>
 
-          {loading ? (
+          {error ? (
+            <EmptyState
+              title="The menu couldn't be loaded"
+              description={`${error} If you just deployed, the menu service may still be starting up.`}
+              action={<Button onClick={() => setRetryKey((key) => key + 1)}>Try again</Button>}
+            />
+          ) : loading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, index) => (
                 <Skeleton key={index} className="h-80 rounded-3xl" />

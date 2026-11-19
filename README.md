@@ -258,3 +258,17 @@ Manual smoke checks (dev/prod build): customer browse/cart/checkout/quote, order
 - **Pixel-perfect fidelity:** without an authoritative Hungry Hut reference image, UI is implemented to match the written brand/design spec (not guaranteed pixel-identical).
 - **Dev runtime:** Vite dev mode may occasionally have lazy-route loading issues in some local states; a clean restart/cache clear or testing against `client/dist` (preview/`SERVE_CLIENT=true`) can be used for stable verification. Production build (`client/dist`) is the source of truth for deploy.
 - **Embedded dev DB:** restarting the API while using embedded dev DB can reseed and discard prior dev orders/state.
+
+## Deploy to Vercel
+
+The repo includes a Vercel serverless entrypoint (`api/index.js`) that runs the Express API and seeds MongoDB on cold start. `vercel.json` builds the Vite client and rewrites `/api/*` to the function.
+
+Set these environment variables in the Vercel project before deploying:
+
+| Variable | Value |
+| --- | --- |
+| `MONGODB_URI` | MongoDB Atlas connection string, e.g. `mongodb+srv://user:pass@cluster.mongodb.net/hungryhut?retryWrites=true&w=majority` |
+| `JWT_SECRET` | A random string of at least 24 characters |
+| `ADMIN_PASSWORD` | Password for the seeded admin account (`admin@hungryhut.in` by default) |
+
+Seeding is enabled by default on the first deployment (categories, products, offers and admin credentials). Once MongoDB contains products and an admin user, subsequent cold starts skip seeding. Set `AUTO_SEED=false` in the Vercel dashboard if you ever need to disable it.

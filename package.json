@@ -2,6 +2,7 @@
   "name": "hungry-hut",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Hungry Hut — premium fast-food restaurant ordering platform",
   "scripts": {
     "install:all": "npm --prefix server install && npm --prefix client install",
